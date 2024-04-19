@@ -20,158 +20,219 @@ import (
 	"github.com/grafana/grafana/pkg/util"
 )
 
-type AlertRuleMutator func(*AlertRule)
+type AlertRuleMutator func(g *AlertRuleGenerator, r *AlertRule)
+
+func NewAlertRuleGenerator(t *testing.T, prefix string) *AlertRuleGenerator {
+	seed := time.Now().UnixNano()
+	if t != nil {
+		t.Helper()
+		t.Log(fmt.Sprintf("Rule generator seed: %d", seed))
+	}
+	g := &AlertRuleGenerator{
+		r:      rand.New(rand.NewSource(seed)),
+		prefix: prefix,
+	}
+	return g.With(g.WithUniqueUID(), g.WithUniqueTitle())
+}
+
+type AlertRuleGenerator struct {
+	AlertRuleMutators
+	r        *rand.Rand
+	prefix   string
+	mutators []AlertRuleMutator
+}
+
+func (g *AlertRuleGenerator) With(mutators ...AlertRuleMutator) *AlertRuleGenerator {
+	return &AlertRuleGenerator{
+		r:        g.r,
+		prefix:   g.prefix,
+		mutators: append(g.mutators, mutators...),
+	}
+}
 
 // AlertRuleGen provides a factory function that generates a random AlertRule.
 // The mutators arguments allows changing fields of the resulting structure
 func AlertRuleGen(mutators ...AlertRuleMutator) func() *AlertRule {
+	g := NewAlertRuleGenerator(nil, "test")
 	return func() *AlertRule {
-		randNoDataState := func() NoDataState {
-			s := [...]NoDataState{
-				Alerting,
-				NoData,
-				OK,
-			}
-			return s[rand.Intn(len(s))]
-		}
-
-		randErrState := func() ExecutionErrorState {
-			s := [...]ExecutionErrorState{
-				AlertingErrState,
-				ErrorErrState,
-				OkErrState,
-			}
-			return s[rand.Intn(len(s))]
-		}
-
-		interval := (rand.Int63n(6) + 1) * 10
-		forInterval := time.Duration(interval*rand.Int63n(6)) * time.Second
-
-		var annotations map[string]string = nil
-		if rand.Int63()%2 == 0 {
-			annotations = GenerateAlertLabels(rand.Intn(5), "ann-")
-		}
-		var labels map[string]string = nil
-		if rand.Int63()%2 == 0 {
-			labels = GenerateAlertLabels(rand.Intn(5), "lbl-")
-		}
-
-		var dashUID *string = nil
-		var panelID *int64 = nil
-		if rand.Int63()%2 == 0 {
-			d := util.GenerateShortUID()
-			dashUID = &d
-			p := rand.Int63n(1500)
-			panelID = &p
-		}
-
-		var ns []NotificationSettings
-		if rand.Int63()%2 == 0 {
-			ns = append(ns, NotificationSettingsGen()())
-		}
-
-		rule := &AlertRule{
-			ID:                   0,
-			OrgID:                rand.Int63n(1500) + 1, // Prevent OrgID=0 as this does not pass alert rule validation.
-			Title:                "TEST-ALERT-" + util.GenerateShortUID(),
-			Condition:            "A",
-			Data:                 []AlertQuery{GenerateAlertQuery()},
-			Updated:              time.Now().Add(-time.Duration(rand.Intn(100) + 1)),
-			IntervalSeconds:      rand.Int63n(60) + 1,
-			Version:              rand.Int63n(1500), // Don't generate a rule ID too big for postgres
-			UID:                  util.GenerateShortUID(),
-			NamespaceUID:         util.GenerateShortUID(),
-			DashboardUID:         dashUID,
-			PanelID:              panelID,
-			RuleGroup:            "TEST-GROUP-" + util.GenerateShortUID(),
-			RuleGroupIndex:       rand.Intn(1500),
-			NoDataState:          randNoDataState(),
-			ExecErrState:         randErrState(),
-			For:                  forInterval,
-			Annotations:          annotations,
-			Labels:               labels,
-			NotificationSettings: ns,
-		}
-
-		for _, mutator := range mutators {
-			mutator(rule)
-		}
-		return rule
+		r := g.With(mutators...).Generate()
+		return &r
 	}
 }
 
-func WithNotEmptyLabels(count int, prefix string) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (g *AlertRuleGenerator) Generate() AlertRule {
+	randNoDataState := func() NoDataState {
+		s := [...]NoDataState{
+			Alerting,
+			NoData,
+			OK,
+		}
+		return s[g.r.Intn(len(s))]
+	}
+
+	randErrState := func() ExecutionErrorState {
+		s := [...]ExecutionErrorState{
+			AlertingErrState,
+			ErrorErrState,
+			OkErrState,
+		}
+		return s[g.r.Intn(len(s))]
+	}
+
+	interval := (g.r.Int63n(6) + 1) * 10
+	forInterval := time.Duration(interval*g.r.Int63n(6)) * time.Second
+
+	var annotations map[string]string = nil
+	if g.r.Int63()%2 == 0 {
+		annotations = GenerateAlertLabels(g.r.Intn(5), fmt.Sprintf("%s-ann-", g.prefix))
+	}
+	var labels map[string]string = nil
+	if g.r.Int63()%2 == 0 {
+		labels = GenerateAlertLabels(g.r.Intn(5), fmt.Sprintf("%s-lbl-", g.prefix))
+	}
+
+	var dashUID *string = nil
+	var panelID *int64 = nil
+	if g.r.Int63()%2 == 0 {
+		d := util.GenerateShortUID()
+		dashUID = &d
+		p := g.r.Int63n(1500)
+		panelID = &p
+	}
+
+	var ns []NotificationSettings
+	if g.r.Int63()%2 == 0 {
+		ns = append(ns, NotificationSettingsGen()())
+	}
+	rule := AlertRule{
+		ID:                   0,
+		OrgID:                g.r.Int63n(1500) + 1, // Prevent OrgID=0 as this does not pass alert rule validation.
+		Title:                fmt.Sprintf("%s-title-%s", g.prefix, util.GenerateShortUID()),
+		Condition:            "A",
+		Data:                 []AlertQuery{GenerateAlertQuery()},
+		Updated:              time.Now().Add(-time.Duration(g.r.Intn(100) + 1)),
+		IntervalSeconds:      g.r.Int63n(60) + 1,
+		Version:              g.r.Int63n(1500), // Don't generate a rule ID too big for postgres
+		UID:                  util.GenerateShortUID(),
+		NamespaceUID:         util.GenerateShortUID(),
+		DashboardUID:         dashUID,
+		PanelID:              panelID,
+		RuleGroup:            fmt.Sprintf("%s-group-%s,", g.prefix, util.GenerateShortUID()),
+		RuleGroupIndex:       g.r.Intn(1500),
+		NoDataState:          randNoDataState(),
+		ExecErrState:         randErrState(),
+		For:                  forInterval,
+		Annotations:          annotations,
+		Labels:               labels,
+		NotificationSettings: ns,
+	}
+
+	for _, mutator := range g.mutators {
+		mutator(g, &rule)
+	}
+	return rule
+}
+
+func (g *AlertRuleGenerator) GenerateRef() *AlertRule {
+	r := g.Generate()
+	return &r
+}
+
+func (g *AlertRuleGenerator) GenerateMany(count int) []AlertRule {
+	result := make([]AlertRule, 0, count)
+	for i := 0; i < count; i++ {
+		result = append(result, g.Generate())
+	}
+	return result
+}
+
+func (g *AlertRuleGenerator) GenerateManyRef(count int) []*AlertRule {
+	result := make([]*AlertRule, 0, count)
+	for i := 0; i < count; i++ {
+		r := g.Generate()
+		result = append(result, &r)
+	}
+	return result
+}
+
+type AlertRuleMutators struct {
+}
+
+func (a *AlertRuleMutators) WithNotEmptyLabels(count int, prefix string) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.Labels = GenerateAlertLabels(count, prefix)
 	}
 }
 
-func WithUniqueID() AlertRuleMutator {
-	usedID := make(map[int64]struct{})
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithUniqueID() AlertRuleMutator {
+	ids := sync.Map{}
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
+		id := rule.ID
 		for {
-			id := rand.Int63n(1500) + 1
-			if _, ok := usedID[id]; !ok {
-				usedID[id] = struct{}{}
+			_, exists := ids.LoadOrStore(id, struct{}{})
+			if !exists {
 				rule.ID = id
 				return
 			}
+			id = g.r.Int63n(1500) + 1
 		}
 	}
 }
 
-func WithGroupIndex(groupIndex int) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithGroupIndex(groupIndex int) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.RuleGroupIndex = groupIndex
 	}
 }
 
-func WithUniqueGroupIndex() AlertRuleMutator {
-	usedIdx := make(map[int]struct{})
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithUniqueGroupIndex() AlertRuleMutator {
+	usedIdx := sync.Map{}
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
+		idx := rule.RuleGroupIndex
 		for {
-			idx := rand.Int()
-			if _, ok := usedIdx[idx]; !ok {
-				usedIdx[idx] = struct{}{}
+			if _, exists := usedIdx.LoadOrStore(idx, struct{}{}); !exists {
 				rule.RuleGroupIndex = idx
 				return
 			}
+			idx = g.r.Int()
 		}
 	}
 }
 
-func WithSequentialGroupIndex() AlertRuleMutator {
+func (a *AlertRuleMutators) WithSequentialGroupIndex() AlertRuleMutator {
 	idx := 1
-	return func(rule *AlertRule) {
+	m := sync.Mutex{}
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
+		m.Lock()
+		defer m.Unlock()
 		rule.RuleGroupIndex = idx
 		idx++
 	}
 }
 
-func WithOrgID(orgId int64) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithOrgID(orgId int64) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.OrgID = orgId
 	}
 }
 
-func WithUniqueOrgID() AlertRuleMutator {
-	orgs := map[int64]struct{}{}
-	return func(rule *AlertRule) {
-		var orgID int64
+func (a *AlertRuleMutators) WithUniqueOrgID() AlertRuleMutator {
+	orgs := sync.Map{}
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
+		orgID := rule.OrgID
 		for {
-			orgID = rand.Int63()
-			if _, ok := orgs[orgID]; !ok {
-				break
+			if _, exist := orgs.LoadOrStore(orgID, struct{}{}); !exist {
+				rule.OrgID = orgID
+				return
 			}
+			orgID = g.r.Int63()
 		}
-		orgs[orgID] = struct{}{}
-		rule.OrgID = orgID
 	}
 }
 
 // WithNamespaceUIDNotIn generates a random namespace UID if it is among excluded
-func WithNamespaceUIDNotIn(exclude ...string) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithNamespaceUIDNotIn(exclude ...string) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		for {
 			if !slices.Contains(exclude, rule.NamespaceUID) {
 				return
@@ -181,62 +242,69 @@ func WithNamespaceUIDNotIn(exclude ...string) AlertRuleMutator {
 	}
 }
 
-func WithNamespace(namespace *folder.Folder) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithNamespace(namespace *folder.Folder) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.NamespaceUID = namespace.UID
 	}
 }
 
-func WithInterval(interval time.Duration) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithInterval(interval time.Duration) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.IntervalSeconds = int64(interval.Seconds())
 	}
 }
 
-func WithIntervalBetween(min, max int64) AlertRuleMutator {
-	return func(rule *AlertRule) {
-		rule.IntervalSeconds = rand.Int63n(max-min) + min
+func (a *AlertRuleMutators) WithIntervalMatching(baseInterval time.Duration) AlertRuleMutator {
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
+		rule.IntervalSeconds = int64(baseInterval.Seconds()) * (g.r.Int63n(10) + 1)
+		rule.For = time.Duration(rule.IntervalSeconds*g.r.Int63n(9)+1) * time.Second
 	}
 }
 
-func WithTitle(title string) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithIntervalBetween(min, max int64) AlertRuleMutator {
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
+		rule.IntervalSeconds = g.r.Int63n(max-min) + min
+	}
+}
+
+func (a *AlertRuleMutators) WithTitle(title string) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.Title = title
 	}
 }
 
-func WithFor(duration time.Duration) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithFor(duration time.Duration) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.For = duration
 	}
 }
 
-func WithForNTimes(timesOfInterval int64) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithForNTimes(timesOfInterval int64) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.For = time.Duration(rule.IntervalSeconds*timesOfInterval) * time.Second
 	}
 }
 
-func WithNoDataExecAs(nodata NoDataState) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithNoDataExecAs(nodata NoDataState) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.NoDataState = nodata
 	}
 }
 
-func WithErrorExecAs(err ExecutionErrorState) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithErrorExecAs(err ExecutionErrorState) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.ExecErrState = err
 	}
 }
 
-func WithAnnotations(a data.Labels) AlertRuleMutator {
-	return func(rule *AlertRule) {
-		rule.Annotations = a
+func (a *AlertRuleMutators) WithAnnotations(lbls data.Labels) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
+		rule.Annotations = lbls
 	}
 }
 
-func WithAnnotation(key, value string) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithAnnotation(key, value string) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		if rule.Annotations == nil {
 			rule.Annotations = data.Labels{}
 		}
@@ -244,14 +312,14 @@ func WithAnnotation(key, value string) AlertRuleMutator {
 	}
 }
 
-func WithLabels(a data.Labels) AlertRuleMutator {
-	return func(rule *AlertRule) {
-		rule.Labels = a
+func (a *AlertRuleMutators) WithLabels(lbls data.Labels) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
+		rule.Labels = lbls
 	}
 }
 
-func WithLabel(key, value string) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithLabel(key, value string) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		if rule.Labels == nil {
 			rule.Labels = data.Labels{}
 		}
@@ -259,36 +327,45 @@ func WithLabel(key, value string) AlertRuleMutator {
 	}
 }
 
-func WithUniqueUID(knownUids *sync.Map) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithDashboardAndPanel(dashboardUID *string, panelID *int64) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
+		rule.DashboardUID = dashboardUID
+		rule.PanelID = panelID
+	}
+}
+
+func (a *AlertRuleMutators) WithUniqueUID() AlertRuleMutator {
+	uids := sync.Map{}
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
 		uid := rule.UID
 		for {
-			_, ok := knownUids.LoadOrStore(uid, struct{}{})
-			if !ok {
+			_, exist := uids.LoadOrStore(uid, struct{}{})
+			if !exist {
 				rule.UID = uid
 				return
 			}
-			uid = uuid.NewString()
+			uid = util.GenerateShortUID()
 		}
 	}
 }
 
-func WithUniqueTitle(knownTitles *sync.Map) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithUniqueTitle() AlertRuleMutator {
+	titles := sync.Map{}
+	return func(g *AlertRuleGenerator, rule *AlertRule) {
 		title := rule.Title
 		for {
-			_, ok := knownTitles.LoadOrStore(title, struct{}{})
-			if !ok {
+			_, exist := titles.LoadOrStore(title, struct{}{})
+			if !exist {
 				rule.Title = title
 				return
 			}
-			title = uuid.NewString()
+			title = fmt.Sprintf("%s-title-%s", g.prefix, util.GenerateShortUID())
 		}
 	}
 }
 
-func WithQuery(query ...AlertQuery) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithQuery(query ...AlertQuery) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.Data = query
 		if len(query) > 1 {
 			rule.Condition = query[0].RefID
@@ -296,22 +373,22 @@ func WithQuery(query ...AlertQuery) AlertRuleMutator {
 	}
 }
 
-func WithGroupKey(groupKey AlertRuleGroupKey) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithGroupKey(groupKey AlertRuleGroupKey) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.RuleGroup = groupKey.RuleGroup
 		rule.OrgID = groupKey.OrgID
 		rule.NamespaceUID = groupKey.NamespaceUID
 	}
 }
 
-func WithNotificationSettingsGen(ns func() NotificationSettings) AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithNotificationSettingsGen(ns func() NotificationSettings) AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.NotificationSettings = []NotificationSettings{ns()}
 	}
 }
 
-func WithNoNotificationSettings() AlertRuleMutator {
-	return func(rule *AlertRule) {
+func (a *AlertRuleMutators) WithNoNotificationSettings() AlertRuleMutator {
+	return func(_ *AlertRuleGenerator, rule *AlertRule) {
 		rule.NotificationSettings = nil
 	}
 }
@@ -392,7 +469,7 @@ func GenerateGroupKey(orgID int64) AlertRuleGroupKey {
 }
 
 // CopyRule creates a deep copy of AlertRule
-func CopyRule(r *AlertRule) *AlertRule {
+func CopyRule(r *AlertRule, mutators ...AlertRuleMutator) *AlertRule {
 	result := AlertRule{
 		ID:              r.ID,
 		OrgID:           r.OrgID,
@@ -447,6 +524,13 @@ func CopyRule(r *AlertRule) *AlertRule {
 
 	for _, s := range r.NotificationSettings {
 		result.NotificationSettings = append(result.NotificationSettings, CopyNotificationSettings(s))
+	}
+
+	if len(mutators) > 0 {
+		g := NewAlertRuleGenerator(nil, "copy-")
+		for _, mutator := range mutators {
+			mutator(g, r)
+		}
 	}
 
 	return &result

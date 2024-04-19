@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -49,7 +48,8 @@ func TestIntegrationUpdateAlertRules(t *testing.T) {
 		FolderService: setupFolderService(t, sqlStore, cfg, featuremgmt.WithFeatures()),
 		Logger:        &logtest.Fake{},
 	}
-	generator := models.AlertRuleGen(withIntervalMatching(store.Cfg.BaseInterval), models.WithUniqueID())
+	m := models.AlertRuleMutators{}
+	generator := models.AlertRuleGen(m.WithIntervalMatching(store.Cfg.BaseInterval), m.WithUniqueID())
 
 	t.Run("should increase version", func(t *testing.T) {
 		rule := createRule(t, store, generator)
@@ -104,12 +104,12 @@ func TestIntegrationUpdateAlertRulesWithUniqueConstraintViolation(t *testing.T) 
 		Logger:        &logtest.Fake{},
 	}
 
-	idMutator := models.WithUniqueID()
+	m := models.AlertRuleMutators{}
 	createRuleInFolder := func(title string, orgID int64, namespaceUID string) *models.AlertRule {
-		generator := models.AlertRuleGen(withIntervalMatching(store.Cfg.BaseInterval), idMutator, models.WithNamespace(&folder.Folder{
+		generator := models.AlertRuleGen(m.WithIntervalMatching(store.Cfg.BaseInterval), m.WithUniqueID(), m.WithNamespace(&folder.Folder{
 			UID:   namespaceUID,
 			Title: namespaceUID,
-		}), withOrgID(orgID), models.WithTitle(title))
+		}), withOrgID(orgID), m.WithTitle(title))
 		return createRule(t, store, generator)
 	}
 
@@ -360,7 +360,8 @@ func TestIntegration_GetAlertRulesForScheduling(t *testing.T) {
 		FeatureToggles: featuremgmt.WithFeatures(),
 	}
 
-	generator := models.AlertRuleGen(withIntervalMatching(store.Cfg.BaseInterval), models.WithUniqueID(), models.WithUniqueOrgID())
+	m := models.AlertRuleMutators{}
+	generator := models.AlertRuleGen(m.WithIntervalMatching(store.Cfg.BaseInterval), m.WithUniqueID(), m.WithUniqueOrgID())
 	rule1 := createRule(t, store, generator)
 	rule2 := createRule(t, store, generator)
 
@@ -456,13 +457,6 @@ func TestIntegration_GetAlertRulesForScheduling(t *testing.T) {
 		}
 		require.Equal(t, expected, query.ResultFoldersTitles)
 	})
-}
-
-func withIntervalMatching(baseInterval time.Duration) func(*models.AlertRule) {
-	return func(rule *models.AlertRule) {
-		rule.IntervalSeconds = int64(baseInterval.Seconds()) * (rand.Int63n(10) + 1)
-		rule.For = time.Duration(rule.IntervalSeconds*rand.Int63n(9)+1) * time.Second
-	}
 }
 
 func TestIntegration_CountAlertRules(t *testing.T) {
@@ -614,7 +608,11 @@ func TestIntegrationInsertAlertRules(t *testing.T) {
 		Cfg:           cfg.UnifiedAlerting,
 	}
 
-	rules := models.GenerateAlertRules(5, models.AlertRuleGen(models.WithOrgID(orgID), withIntervalMatching(store.Cfg.BaseInterval)))
+	rules := models.GenerateAlertRules(5,
+		models.AlertRuleGen(
+			models.WithOrgID(orgID),
+			models.WitID(0),
+			withIntervalMatching(store.Cfg.BaseInterval)))
 	deref := make([]models.AlertRule, 0, len(rules))
 	for _, rule := range rules {
 		deref = append(deref, *rule)
@@ -683,21 +681,22 @@ func TestIntegrationAlertRulesNotificationSettings(t *testing.T) {
 		Cfg:           cfg.UnifiedAlerting,
 	}
 
-	uniqueUids := &sync.Map{}
 	receiverName := "receiver\"-" + uuid.NewString()
-	rules := models.GenerateAlertRules(3, models.AlertRuleGen(models.WithOrgID(1), withIntervalMatching(store.Cfg.BaseInterval), models.WithUniqueUID(uniqueUids)))
+
+	m := models.AlertRuleMutators{}
+	rules := models.GenerateAlertRules(3, models.AlertRuleGen(m.WithOrgID(1), withIntervalMatching(store.Cfg.BaseInterval), m.WithUniqueUID()))
 	receiveRules := models.GenerateAlertRules(3,
 		models.AlertRuleGen(
-			models.WithOrgID(1),
+			m.WithOrgID(1),
 			withIntervalMatching(store.Cfg.BaseInterval),
-			models.WithUniqueUID(uniqueUids),
-			models.WithNotificationSettingsGen(models.NotificationSettingsGen(models.NSMuts.WithReceiver(receiverName)))))
+			m.WithUniqueUID(),
+			m.WithNotificationSettingsGen(models.NotificationSettingsGen(models.NSMuts.WithReceiver(receiverName)))))
 	noise := models.GenerateAlertRules(3,
 		models.AlertRuleGen(
-			models.WithOrgID(1),
+			m.WithOrgID(1),
 			withIntervalMatching(store.Cfg.BaseInterval),
-			models.WithUniqueUID(uniqueUids),
-			models.WithNotificationSettingsGen(models.NotificationSettingsGen(models.NSMuts.WithMuteTimeIntervals(receiverName))))) // simulate collision of names of receiver and mute timing
+			m.WithUniqueUID(),
+			m.WithNotificationSettingsGen(models.NotificationSettingsGen(models.NSMuts.WithMuteTimeIntervals(receiverName))))) // simulate collision of names of receiver and mute timing
 	deref := make([]models.AlertRule, 0, len(rules)+len(receiveRules)+len(noise))
 	for _, rule := range append(append(rules, receiveRules...), noise...) {
 		r := *rule
@@ -768,13 +767,12 @@ func TestIntegrationListNotificationSettings(t *testing.T) {
 		Cfg:           cfg.UnifiedAlerting,
 	}
 
-	uids := &sync.Map{}
-	titles := &sync.Map{}
 	receiverName := `receiver%"-👍'test`
+	m := models.AlertRuleMutators{}
 	rulesWithNotifications := models.GenerateAlertRules(5, models.AlertRuleGen(
-		models.WithOrgID(1),
-		models.WithUniqueUID(uids),
-		models.WithUniqueTitle(titles),
+		m.WithOrgID(1),
+		m.WithUniqueUID(),
+		m.WithUniqueTitle(),
 		withIntervalMatching(store.Cfg.BaseInterval),
 		models.WithNotificationSettingsGen(models.NotificationSettingsGen(models.NSMuts.WithReceiver(receiverName))),
 	))
