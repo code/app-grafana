@@ -534,11 +534,12 @@ func (hs *HTTPServer) getFSDataSources(c *contextmodel.ReqContext, availablePlug
 
 func newAppDTO(plugin pluginstore.Plugin, settings pluginsettings.InfoDTO) *plugins.AppDTO {
 	app := &plugins.AppDTO{
-		ID:      plugin.ID,
-		Version: plugin.Info.Version,
-		Path:    plugin.Module,
-		Preload: false,
-		Angular: plugin.Angular,
+		ID:         plugin.ID,
+		Version:    plugin.Info.Version,
+		Path:       plugin.Module,
+		Preload:    false,
+		Angular:    plugin.Angular,
+		Extensions: plugin.Generated.Extensions,
 	}
 
 	if settings.Enabled {
