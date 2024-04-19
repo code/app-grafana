@@ -17,6 +17,7 @@ type PluginSetting struct {
 	Info             plugins.Info         `json:"info"`
 	Includes         []*plugins.Includes  `json:"includes"`
 	Dependencies     plugins.Dependencies `json:"dependencies"`
+	Generated        plugins.Generated    `json:"generated"`
 	JsonData         map[string]any       `json:"jsonData"`
 	SecureJsonFields map[string]bool      `json:"secureJsonFields"`
 	DefaultNavUrl    string               `json:"defaultNavUrl"`

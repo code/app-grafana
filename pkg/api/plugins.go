@@ -208,6 +208,7 @@ func (hs *HTTPServer) GetPluginSettingByID(c *contextmodel.ReqContext) response.
 		SignatureOrg:     plugin.SignatureOrg,
 		SecureJsonFields: map[string]bool{},
 		AngularDetected:  plugin.Angular.Detected,
+		Generated:        plugin.Generated,
 	}
 
 	if plugin.IsApp() {

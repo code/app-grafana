@@ -90,6 +90,7 @@ type JSONData struct {
 	Preload      bool         `json:"preload"`
 	Backend      bool         `json:"backend"`
 	Routes       []*Route     `json:"routes"`
+	Generated    Generated    `json:"generated"`
 
 	// AccessControl settings
 	Roles []RoleRegistration `json:"roles,omitempty"`

@@ -45,6 +45,18 @@ type Dependencies struct {
 	Plugins           []Dependency `json:"plugins"`
 }
 
+type Extension struct {
+	ExtensionPointId string `json:"extensionPointId"`
+	Title            string `json:"title"`
+	Description      string `json:"description"`
+	Type             string `json:"type"`
+}
+
+type Generated struct {
+	Extensions []Extension `json:"extensions"`
+}
+
+
 type Includes struct {
 	Name       string       `json:"name"`
 	Path       string       `json:"path"`
