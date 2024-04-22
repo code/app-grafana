@@ -154,6 +154,10 @@ func ReadPluginJSON(reader io.Reader) (JSONData, error) {
 		}
 	}
 
+	if len(plugin.Generated.Extensions) == 0 {
+		plugin.Generated.Extensions = []Extension{}
+	}
+
 	if len(plugin.Dependencies.Plugins) == 0 {
 		plugin.Dependencies.Plugins = []Dependency{}
 	}
