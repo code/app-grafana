@@ -1,14 +1,17 @@
 import { css } from '@emotion/css';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 
 import { dateMath, GrafanaTheme2 } from '@grafana/data';
-import { CollapsableSection, Icon, Link, LinkButton, useStyles2, Stack } from '@grafana/ui';
+import { CollapsableSection, Icon, Link, LinkButton, useStyles2, Stack, Alert } from '@grafana/ui';
 import { useQueryParams } from 'app/core/hooks/useQueryParams';
+import { alertSilencesApi } from 'app/features/alerting/unified/api/alertSilencesApi';
+import { featureDiscoveryApi } from 'app/features/alerting/unified/api/featureDiscoveryApi';
+import { getDatasourceAPIUid } from 'app/features/alerting/unified/utils/datasource';
 import { AlertmanagerAlert, Silence, SilenceState } from 'app/plugins/datasource/alertmanager/types';
 import { useDispatch } from 'app/types';
 
 import { AlertmanagerAction, useAlertmanagerAbility } from '../../hooks/useAbilities';
-import { expireSilenceAction } from '../../state/actions';
+import { fetchAmAlertsAction } from '../../state/actions';
 import { parseMatchers } from '../../utils/alertmanager';
 import { getSilenceFiltersFromUrlParams, makeAMLink } from '../../utils/misc';
 import { Authorize } from '../Authorize';
@@ -29,12 +32,29 @@ export interface SilenceTableItem extends Silence {
 type SilenceTableColumnProps = DynamicTableColumnProps<SilenceTableItem>;
 type SilenceTableItemProps = DynamicTableItemProps<SilenceTableItem>;
 interface Props {
-  silences: Silence[];
   alertManagerAlerts: AlertmanagerAlert[];
   alertManagerSourceName: string;
 }
 
-const SilencesTable = ({ silences, alertManagerAlerts, alertManagerSourceName }: Props) => {
+const SilencesTable = ({ alertManagerAlerts, alertManagerSourceName }: Props) => {
+  console.log(alertManagerAlerts);
+  const dispatch = useDispatch();
+  const [getSilences, { data: silences = [], isLoading, error }] =
+    alertSilencesApi.endpoints.getSilences.useLazyQuery();
+
+  const { currentData: amFeatures } = featureDiscoveryApi.useDiscoverAmFeaturesQuery(
+    { amSourceName: alertManagerSourceName ?? '' },
+    { skip: !alertManagerSourceName }
+  );
+
+  const mimirLazyInitError =
+    error?.message?.includes('the Alertmanager is not configured') && amFeatures?.lazyConfigInit;
+
+  useEffect(() => {
+    getSilences({ datasourceUid: getDatasourceAPIUid(alertManagerSourceName) });
+    dispatch(fetchAmAlertsAction(alertManagerSourceName));
+  }, [alertManagerSourceName, dispatch, getSilences]);
+
   const styles = useStyles2(getStyles);
   const [queryParams] = useQueryParams();
   const filteredSilencesNotExpired = useFilteredSilences(silences, false);
@@ -44,6 +64,7 @@ const SilencesTable = ({ silences, alertManagerAlerts, alertManagerSourceName }:
   const showExpiredFromUrl = silenceStateInParams === SilenceState.Expired;
 
   const itemsNotExpired = useMemo((): SilenceTableItemProps[] => {
+    console.log(alertManagerAlerts);
     const findSilencedAlerts = (id: string) => {
       return alertManagerAlerts.filter((alert) => alert.status.silencedBy.includes(id));
     };
@@ -68,6 +89,27 @@ const SilencesTable = ({ silences, alertManagerAlerts, alertManagerSourceName }:
       };
     });
   }, [filteredSilencesExpired, alertManagerAlerts]);
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (mimirLazyInitError) {
+    return (
+      <Alert title="The selected Alertmanager has no configuration" severity="warning">
+        Create a new contact point to create a configuration using the default values or contact your administrator to
+        set up the Alertmanager.
+      </Alert>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error" title="Error loading silences">
+        {error.message || 'Unknown error.'}
+      </Alert>
+    );
+  }
 
   return (
     <div data-testid="silences-table">
@@ -199,13 +241,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
 });
 
 function useColumns(alertManagerSourceName: string) {
-  const dispatch = useDispatch();
   const styles = useStyles2(getStyles);
   const [updateSupported, updateAllowed] = useAlertmanagerAbility(AlertmanagerAction.UpdateSilence);
+  const [expireSilence] = alertSilencesApi.endpoints.expireSilence.useMutation();
 
   return useMemo((): SilenceTableColumnProps[] => {
-    const handleExpireSilenceClick = (id: string) => {
-      dispatch(expireSilenceAction(alertManagerSourceName, id));
+    const handleExpireSilenceClick = (silenceId: string) => {
+      expireSilence({ datasourceUid: getDatasourceAPIUid(alertManagerSourceName), silenceId });
     };
     const columns: SilenceTableColumnProps[] = [
       {
@@ -228,6 +270,7 @@ function useColumns(alertManagerSourceName: string) {
         id: 'alerts',
         label: 'Alerts',
         renderCell: function renderSilencedAlerts({ data: { silencedAlerts } }) {
+          console.log(silencedAlerts);
           return <span data-testid="alerts">{silencedAlerts.length}</span>;
         },
         size: 4,
@@ -281,6 +324,6 @@ function useColumns(alertManagerSourceName: string) {
       });
     }
     return columns;
-  }, [alertManagerSourceName, dispatch, styles.editButton, updateAllowed, updateSupported]);
+  }, [alertManagerSourceName, expireSilence, styles.editButton, updateAllowed, updateSupported]);
 }
 export default SilencesTable;

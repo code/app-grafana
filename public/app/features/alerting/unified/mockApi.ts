@@ -5,6 +5,9 @@ import { setupServer, SetupServer } from 'msw/node';
 import { DataSourceInstanceSettings, PluginMeta } from '@grafana/data';
 import { setBackendSrv } from '@grafana/runtime';
 import { AlertRuleUpdated } from 'app/features/alerting/unified/api/alertRuleApi';
+import { mockAlertmanagerAlert, mockSilence } from 'app/features/alerting/unified/mocks';
+import { alertmanagerChoiceHandler } from 'app/features/alerting/unified/mocks/alertmanagerApi';
+import { parseMatchers } from 'app/features/alerting/unified/utils/alertmanager';
 import { DashboardDTO, FolderDTO, NotifierDTO, OrgUser } from 'app/types';
 import {
   PromBuildInfoResponse,
@@ -18,11 +21,13 @@ import {
   AlertmanagerConfig,
   AlertManagerCortexConfig,
   AlertmanagerReceiver,
+  AlertState,
   EmailConfig,
   GrafanaManagedContactPoint,
   GrafanaManagedReceiverConfig,
   MatcherOperator,
   Route,
+  SilenceState,
 } from '../../../plugins/datasource/alertmanager/types';
 import { DashboardSearchItem } from '../../search/types';
 
@@ -424,10 +429,45 @@ export function mockDashboardApi(server: SetupServer) {
   };
 }
 
-// Creates a MSW server and sets up beforeAll, afterAll and beforeEach handlers for it
-export function setupMswServer() {
-  const server = setupServer();
+const mockSilences = [
+  mockSilence({ id: '12345' }),
+  mockSilence({ id: '67890', matchers: parseMatchers('foo!=bar'), comment: 'Catch all' }),
+  mockSilence({ id: '1111', status: { state: SilenceState.Expired } }),
+];
 
+const silencesListHandler = (silences = mockSilences) =>
+  http.get('/api/alertmanager/:datasourceUid/api/v2/silences', () => HttpResponse.json(silences));
+
+const createSilenceHandler = () =>
+  http.post('/api/alertmanager/:datasourceUid/api/v2/silences', () =>
+    HttpResponse.json({ silenceId: '4bda5b38-7939-4887-9ec2-16323b8e3b4e' })
+  );
+
+const alertmanagerAlertsListHandlers = () =>
+  http.get('/api/alertmanager/:datasourceUid/api/v2/alerts', () =>
+    HttpResponse.json([
+      mockAlertmanagerAlert({
+        labels: { foo: 'bar', buzz: 'bazz' },
+        status: { state: AlertState.Suppressed, silencedBy: ['12345'], inhibitedBy: [] },
+      }),
+      mockAlertmanagerAlert({
+        labels: { foo: 'bar', buzz: 'bazz' },
+        status: { state: AlertState.Suppressed, silencedBy: ['12345'], inhibitedBy: [] },
+      }),
+    ])
+  );
+
+const defaultHandlers = [
+  alertmanagerChoiceHandler(),
+  silencesListHandler(),
+  createSilenceHandler(),
+  alertmanagerAlertsListHandlers(),
+];
+
+const server = setupServer(...defaultHandlers);
+
+// Sets up beforeAll, afterAll and beforeEach handlers for MSW server
+export function setupMswServer() {
   beforeAll(() => {
     setBackendSrv(backendSrv);
     server.listen({ onUnhandledRequest: 'error' });
@@ -443,3 +483,5 @@ export function setupMswServer() {
 
   return server;
 }
+
+export default server;

@@ -39,6 +39,7 @@ export const alertingApi = createApi({
     'OrgMigrationState',
     'DataSourceSettings',
     'CombinedAlertRule',
+    'AlertSilences',
   ],
   endpoints: () => ({}),
 });

@@ -1,5 +1,5 @@
 import { css } from '@emotion/css';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { dateTime, GrafanaTheme2 } from '@grafana/data';
 import { Alert, Badge, LoadingPlaceholder, useStyles2 } from '@grafana/ui';
@@ -17,8 +17,9 @@ interface Props {
   matchers: Matcher[];
 }
 
+const { useLazyQuery: useLazyGetAlertmanagerAlertsQuery } = alertmanagerApi.endpoints.getAlertmanagerAlerts;
+
 export const SilencedInstancesPreview = ({ amSourceName, matchers }: Props) => {
-  const { useGetAlertmanagerAlertsQuery } = alertmanagerApi;
   const styles = useStyles2(getStyles);
   const columns = useColumns();
 
@@ -26,14 +27,22 @@ export const SilencedInstancesPreview = ({ amSourceName, matchers }: Props) => {
   // We don't want to fetch previews for empty matchers as it results in all alerts returned
   const hasValidMatchers = matchers.some((matcher) => matcher.value && matcher.name);
 
-  const {
-    currentData: alerts = [],
-    isFetching,
-    isError,
-  } = useGetAlertmanagerAlertsQuery(
-    { amSourceName, filter: { matchers } },
-    { skip: !hasValidMatchers, refetchOnMountOrArgChange: true }
-  );
+  const [getAlerts, { currentData: alerts = [], isFetching, isError }] = useLazyGetAlertmanagerAlertsQuery();
+
+  // const {
+  //   currentData: alerts = [],
+  //   isFetching,
+  //   isError,
+  // } = useGetAlertmanagerAlertsQuery(
+  //   { amSourceName, filter: { matchers } },
+  //   { skip: !hasValidMatchers, refetchOnMountOrArgChange: true }
+  // );
+
+  useEffect(() => {
+    if (hasValidMatchers) {
+      getAlerts({ amSourceName, filter: { matchers } });
+    }
+  }, [amSourceName, getAlerts, hasValidMatchers, matchers]);
 
   const tableItemAlerts = alerts.map<DynamicTableItemProps<AlertmanagerAlert>>((alert) => ({
     id: alert.fingerprint,
