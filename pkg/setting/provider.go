@@ -90,6 +90,10 @@ type ReloadHandler interface {
 	// Validate validates the configuration, if the validation
 	// fails the configuration will not be updated neither reloaded.
 	ValidateSection(section Section) error
+
+	// ClearCache clears the cache of the configuration. This function will be
+	// called before ReloadSection upon Upsert
+	ClearCache() error
 }
 
 type SettingsBag map[string]map[string]string
