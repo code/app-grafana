@@ -50,14 +50,14 @@ describe('QuickAdd', () => {
   it('shows isCreateAction options when clicked', async () => {
     setup();
     await userEvent.click(screen.getByRole('button', { name: 'New' }));
-    expect(screen.getByRole('link', { name: 'New child 1' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'New child 3' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'New child 1' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'New child 3' })).toBeInTheDocument();
   });
 
   it('reports interaction when a menu item is clicked', async () => {
     setup();
     await userEvent.click(screen.getByRole('button', { name: 'New' }));
-    await userEvent.click(screen.getByRole('link', { name: 'New child 1' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'New child 1' }));
 
     expect(reportInteraction).toHaveBeenCalledWith('grafana_menu_item_clicked', {
       url: '#',

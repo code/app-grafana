@@ -32,7 +32,7 @@ const ELEMENTS = {
     more: {
       button: byRole('button', { name: /More/i }),
       actions: {
-        silence: byRole('link', { name: /Silence/i }),
+        silence: byRole('menuitem', { name: /Silence/i }),
         declareIncident: byRole('menuitem', { name: /Declare incident/i }),
         duplicate: byRole('menuitem', { name: /Duplicate/i }),
         copyLink: byRole('menuitem', { name: /Copy link/i }),
