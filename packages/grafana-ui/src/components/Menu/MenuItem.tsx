@@ -153,7 +153,7 @@ export const MenuItem = React.memo(
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onKeyDown={handleKeys}
-        role={url === undefined ? role : undefined}
+        role={role}
         data-role="menuitem" // used to identify menuitem in Menu.tsx
         ref={localRef}
         data-testid={testId}
