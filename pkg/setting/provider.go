@@ -92,12 +92,6 @@ type ReloadHandler interface {
 	ValidateSection(section Section) error
 }
 
-// NotifyHandler provides an interface for the provider to updates service
-// values if needed.
-type NotifyHandler interface {
-	NotifyHandler(key string, value interface{})
-}
-
 type SettingsBag map[string]map[string]string
 type SettingsRemovals map[string][]string
 
