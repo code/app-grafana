@@ -90,10 +90,12 @@ type ReloadHandler interface {
 	// Validate validates the configuration, if the validation
 	// fails the configuration will not be updated neither reloaded.
 	ValidateSection(section Section) error
+}
 
-	// ClearCache clears the cache of the configuration. This function will be
-	// called before ReloadSection upon Upsert
-	ClearCache() error
+// NotifyHandler provides an interface for the provider to updates service
+// values if needed.
+type NotifyHandler interface {
+	NotifyHandler(key string, value interface{})
 }
 
 type SettingsBag map[string]map[string]string
