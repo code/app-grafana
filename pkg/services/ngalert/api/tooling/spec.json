@@ -3812,6 +3812,7 @@
       }
     },
     "AlertRuleNotificationSettingsExport": {
+      "description": "Field name mismatches with Terraform provider schema are noted where applicable.",
       "type": "object",
       "title": "AlertRuleNotificationSettingsExport is the provisioned export of models.NotificationSettings.",
       "properties": {
@@ -3828,12 +3829,14 @@
           "type": "string"
         },
         "mute_time_intervals": {
+          "description": "TF -\u003e `mute_timings`",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "receiver": {
+          "description": "TF -\u003e `contact_point`",
           "type": "string"
         },
         "repeat_interval": {
@@ -4443,7 +4446,7 @@
       }
     },
     "EvalQueriesResponse": {
-      "$ref": "#/definitions/EvalQueriesResponse"
+      "type": "object"
     },
     "ExplorePanelsState": {
       "description": "This is an object constructed with the keys as the values of the enum VisType and the value being a bag of properties"
@@ -5913,8 +5916,8 @@
       }
     },
     "PagerdutyImage": {
-      "description": "PagerdutyImage is an image",
       "type": "object",
+      "title": "PagerdutyImage is an image.",
       "properties": {
         "alt": {
           "type": "string"
@@ -5928,8 +5931,8 @@
       }
     },
     "PagerdutyLink": {
-      "description": "PagerdutyLink is a link",
       "type": "object",
+      "title": "PagerdutyLink is a link.",
       "properties": {
         "href": {
           "type": "string"
@@ -7719,7 +7722,7 @@
       }
     },
     "Userinfo": {
-      "description": "The Userinfo type is an immutable encapsulation of username and\npassword details for a URL. An existing Userinfo value is guaranteed\nto have a username set (potentially empty, as allowed by RFC 2396),\nand optionally a password.",
+      "description": "The Userinfo type is an immutable encapsulation of username and\npassword details for a [URL]. An existing Userinfo value is guaranteed\nto have a username set (potentially empty, as allowed by RFC 2396),\nand optionally a password.",
       "type": "object"
     },
     "ValidationError": {
@@ -7916,15 +7919,14 @@
         "receiver": {
           "$ref": "#/definitions/receiver"
         }
-      },
-      "$ref": "#/definitions/alertGroup"
+      }
     },
     "alertGroups": {
       "type": "array",
       "items": {
+        "type": "object",
         "$ref": "#/definitions/alertGroup"
-      },
-      "$ref": "#/definitions/alertGroups"
+      }
     },
     "alertStatus": {
       "description": "AlertStatus alert status",
@@ -8025,6 +8027,7 @@
       }
     },
     "gettableAlert": {
+      "description": "GettableAlert gettable alert",
       "type": "object",
       "required": [
         "labels",
@@ -8077,18 +8080,16 @@
           "type": "string",
           "format": "date-time"
         }
-      },
-      "$ref": "#/definitions/gettableAlert"
+      }
     },
     "gettableAlerts": {
       "type": "array",
       "items": {
+        "type": "object",
         "$ref": "#/definitions/gettableAlert"
-      },
-      "$ref": "#/definitions/gettableAlerts"
+      }
     },
     "gettableSilence": {
-      "description": "GettableSilence gettable silence",
       "type": "object",
       "required": [
         "comment",
@@ -8099,51 +8100,15 @@
         "id",
         "status",
         "updatedAt"
-      ],
-      "properties": {
-        "comment": {
-          "description": "comment",
-          "type": "string"
-        },
-        "createdBy": {
-          "description": "created by",
-          "type": "string"
-        },
-        "endsAt": {
-          "description": "ends at",
-          "type": "string",
-          "format": "date-time"
-        },
-        "id": {
-          "description": "id",
-          "type": "string"
-        },
-        "matchers": {
-          "$ref": "#/definitions/matchers"
-        },
-        "startsAt": {
-          "description": "starts at",
-          "type": "string",
-          "format": "date-time"
-        },
-        "status": {
-          "$ref": "#/definitions/silenceStatus"
-        },
-        "updatedAt": {
-          "description": "updated at",
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "$ref": "#/definitions/gettableSilence"
+      ]
     },
     "gettableSilences": {
       "description": "GettableSilences gettable silences",
       "type": "array",
       "items": {
+        "type": "object",
         "$ref": "#/definitions/gettableSilence"
-      },
-      "$ref": "#/definitions/gettableSilences"
+      }
     },
     "integration": {
       "description": "Integration integration",
@@ -8174,8 +8139,7 @@
           "description": "send resolved",
           "type": "boolean"
         }
-      },
-      "$ref": "#/definitions/integration"
+      }
     },
     "labelSet": {
       "description": "LabelSet label set",
@@ -8291,6 +8255,7 @@
       }
     },
     "postableSilence": {
+      "description": "PostableSilence postable silence",
       "type": "object",
       "required": [
         "comment",
@@ -8325,35 +8290,15 @@
           "type": "string",
           "format": "date-time"
         }
-      },
-      "$ref": "#/definitions/postableSilence"
+      }
     },
     "receiver": {
-      "description": "Receiver receiver",
       "type": "object",
       "required": [
         "active",
         "integrations",
         "name"
-      ],
-      "properties": {
-        "active": {
-          "description": "active",
-          "type": "boolean"
-        },
-        "integrations": {
-          "description": "integrations",
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/integration"
-          }
-        },
-        "name": {
-          "description": "name",
-          "type": "string"
-        }
-      },
-      "$ref": "#/definitions/receiver"
+      ]
     },
     "silence": {
       "description": "Silence silence",
