@@ -1,5 +1,6 @@
 import { css } from '@emotion/css';
-import React, { PureComponent, useEffect, useState } from 'react';
+import { PureComponent, useEffect, useState } from 'react';
+import * as React from 'react';
 import { Unsubscribable } from 'rxjs';
 
 import {
@@ -398,7 +399,7 @@ export function QueryGroupTopSection({
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   return (
     <>
-      <div>
+      <div data-testid={selectors.components.QueryTab.queryGroupTopSection}>
         <div className={styles.dataSourceRow}>
           <InlineFormLabel htmlFor="data-source-picker" width={'auto'}>
             Data source

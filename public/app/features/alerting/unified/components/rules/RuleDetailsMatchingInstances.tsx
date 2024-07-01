@@ -1,6 +1,7 @@
 import { css, cx } from '@emotion/css';
 import { countBy, sum } from 'lodash';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import * as React from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data';
 import { LinkButton, useStyles2 } from '@grafana/ui';
@@ -161,33 +162,33 @@ function filterAlerts(
 
 const getStyles = (theme: GrafanaTheme2) => {
   return {
-    flexRow: css`
-      display: flex;
-      flex-direction: row;
-      align-items: flex-end;
-      width: 100%;
-      flex-wrap: wrap;
-      margin-bottom: ${theme.spacing(1)};
-      gap: ${theme.spacing(1)};
-    `,
-    spaceBetween: css`
-      justify-content: space-between;
-    `,
-    footerRow: css`
-      display: flex;
-      flex-direction: column;
-      gap: ${theme.spacing(1)};
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-    `,
-    instancesContainer: css`
-      margin-bottom: ${theme.spacing(2)};
-    `,
-    stats: css`
-      display: flex;
-      gap: ${theme.spacing(1)};
-      padding: ${theme.spacing(1, 0)};
-    `,
+    flexRow: css({
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      width: '100%',
+      flexWrap: 'wrap',
+      marginBottom: theme.spacing(1),
+      gap: theme.spacing(1),
+    }),
+    spaceBetween: css({
+      justifyContent: 'space-between',
+    }),
+    footerRow: css({
+      display: 'flex',
+      flexDirection: 'column',
+      gap: theme.spacing(1),
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+    }),
+    instancesContainer: css({
+      marginBottom: theme.spacing(2),
+    }),
+    stats: css({
+      display: 'flex',
+      gap: theme.spacing(1),
+      padding: theme.spacing(1, 0),
+    }),
   };
 };

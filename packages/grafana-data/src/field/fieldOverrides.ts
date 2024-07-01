@@ -4,11 +4,13 @@ import usePrevious from 'react-use/lib/usePrevious';
 
 import { VariableFormatID } from '@grafana/schema';
 
-import { compareArrayValues, compareDataFrameStructures, guessFieldTypeForField } from '../dataframe';
+import { compareArrayValues, compareDataFrameStructures } from '../dataframe/frameComparisons';
+import { guessFieldTypeForField } from '../dataframe/processDataFrame';
 import { PanelPlugin } from '../panel/PanelPlugin';
 import { GrafanaTheme2 } from '../themes';
 import { asHexString } from '../themes/colorManipulator';
-import { fieldMatchers, reduceField, ReducerID } from '../transformations';
+import { ReducerID, reduceField } from '../transformations/fieldReducer';
+import { fieldMatchers } from '../transformations/matchers';
 import {
   ApplyFieldOverrideOptions,
   DataContextScopedVar,
@@ -35,8 +37,8 @@ import {
   ValueLinkConfig,
 } from '../types';
 import { FieldMatcher } from '../types/transformations';
-import { locationUtil } from '../utils';
 import { mapInternalLinkToExplore } from '../utils/dataLinks';
+import { locationUtil } from '../utils/location';
 
 import { FieldConfigOptionsRegistry } from './FieldConfigOptionsRegistry';
 import { getDisplayProcessor, getRawDisplayProcessor } from './displayProcessor';
@@ -468,9 +470,23 @@ export const getLinksSupplier =
 
       let linkModel: LinkModel<Field>;
 
+      let href =
+        link.onClick || !link.onBuildUrl
+          ? link.url
+          : link.onBuildUrl({
+              origin: field,
+              replaceVariables: boundReplaceVariables,
+            });
+
+      if (href) {
+        href = locationUtil.assureBaseUrl(href.replace(/\n/g, ''));
+        href = replaceVariables(href, dataLinkScopedVars, VariableFormatID.UriEncode);
+        href = locationUtil.processUrl(href);
+      }
+
       if (link.onClick) {
         linkModel = {
-          href: link.url,
+          href,
           title: replaceVariables(link.title || '', dataLinkScopedVars),
           target: link.targetBlank ? '_blank' : undefined,
           onClick: (evt: MouseEvent, origin: Field) => {
@@ -483,19 +499,6 @@ export const getLinksSupplier =
           origin: field,
         };
       } else {
-        let href = link.onBuildUrl
-          ? link.onBuildUrl({
-              origin: field,
-              replaceVariables: boundReplaceVariables,
-            })
-          : link.url;
-
-        if (href) {
-          href = locationUtil.assureBaseUrl(href.replace(/\n/g, ''));
-          href = replaceVariables(href, dataLinkScopedVars, VariableFormatID.UriEncode);
-          href = locationUtil.processUrl(href);
-        }
-
         linkModel = {
           href,
           title: replaceVariables(link.title || '', dataLinkScopedVars),

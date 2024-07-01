@@ -1,5 +1,4 @@
 import { css } from '@emotion/css';
-import React from 'react';
 
 import { GrafanaTheme2 } from '@grafana/data/src/themes';
 import { CallToActionCard, useStyles2, Stack } from '@grafana/ui';
@@ -47,11 +46,11 @@ export const NoRulesSplash = () => {
 };
 
 const getStyles = (theme: GrafanaTheme2) => ({
-  newRuleCard: css`
-    width: calc(50% - ${theme.spacing(1)});
+  newRuleCard: css({
+    width: `calc(50% - ${theme.spacing(1)})`,
 
-    > div {
-      height: 100%;
-    }
-  `,
+    '> div': {
+      height: '100%',
+    },
+  }),
 });

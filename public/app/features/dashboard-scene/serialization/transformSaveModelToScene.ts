@@ -45,10 +45,10 @@ import { panelLinksBehavior, panelMenuBehavior } from '../scene/PanelMenuBehavio
 import { PanelNotices } from '../scene/PanelNotices';
 import { PanelTimeRange } from '../scene/PanelTimeRange';
 import { RowRepeaterBehavior } from '../scene/RowRepeaterBehavior';
-import { hoverHeaderOffsetBehavior } from '../scene/hoverHeaderOffsetBehavior';
 import { RowActions } from '../scene/row-actions/RowActions';
 import { setDashboardPanelContext } from '../scene/setDashboardPanelContext';
 import { createPanelDataProvider } from '../utils/createPanelDataProvider';
+import { preserveDashboardSceneStateInLocalStorage } from '../utils/dashboardSessionState';
 import { DashboardInteractions } from '../utils/interactions';
 import {
   getCurrentValueForOldIntervalModel,
@@ -176,13 +176,7 @@ function createRowFromPanelModel(row: PanelModel, content: SceneGridItemLike[]):
 
   if (row.repeat) {
     // For repeated rows the children are stored in the behavior
-    children = [];
-    behaviors = [
-      new RowRepeaterBehavior({
-        variableName: row.repeat,
-        sources: content,
-      }),
-    ];
+    behaviors = [new RowRepeaterBehavior({ variableName: row.repeat })];
   }
 
   return new SceneGridRow({
@@ -285,6 +279,7 @@ export function createDashboardSceneFromDashboardModel(oldModel: DashboardModel)
       registerDashboardMacro,
       registerPanelInteractionsReporter,
       new behaviors.LiveNowTimer({ enabled: oldModel.liveNow }),
+      preserveDashboardSceneStateInLocalStorage,
     ],
     $data: new DashboardDataLayerSet({ annotationLayers, alertStatesLayer }),
     controls: new DashboardControls({
@@ -319,6 +314,7 @@ export function createSceneVariableFromVariableModel(variable: TypedVariableMode
       filters: variable.filters ?? [],
       baseFilters: variable.baseFilters ?? [],
       defaultKeys: variable.defaultKeys,
+      useQueriesAsFilterForOptions: true,
     });
   }
   if (variable.type === 'custom') {
@@ -447,11 +443,10 @@ export function buildGridItemForLibPanel(panel: PanelModel) {
 }
 
 export function buildGridItemForPanel(panel: PanelModel): DashboardGridItem {
-  const repeatDirection: RepeatDirection = panel.repeatDirection === 'h' ? 'h' : 'v';
-  const repeatOptions = panel.repeat
+  const repeatOptions: Partial<{ variableName: string; repeatDirection: RepeatDirection }> = panel.repeat
     ? {
         variableName: panel.repeat,
-        repeatDirection,
+        repeatDirection: panel.repeatDirection === 'h' ? 'h' : 'v',
       }
     : {};
 
@@ -477,7 +472,7 @@ export function buildGridItemForPanel(panel: PanelModel): DashboardGridItem {
     displayMode: panel.transparent ? 'transparent' : undefined,
     // To be replaced with it's own option persited option instead derived
     hoverHeader: !panel.title && !panel.timeFrom && !panel.timeShift,
-    hoverHeaderOffset: (panel.gridPos?.y ?? 0) === 0 ? 0 : undefined,
+    hoverHeaderOffset: 0,
     $data: createPanelDataProvider(panel),
     titleItems,
 
@@ -505,13 +500,12 @@ export function buildGridItemForPanel(panel: PanelModel): DashboardGridItem {
     key: `grid-item-${panel.id}`,
     x: panel.gridPos.x,
     y: panel.gridPos.y,
-    width: repeatDirection === 'h' ? 24 : panel.gridPos.w,
+    width: repeatOptions.repeatDirection === 'h' ? 24 : panel.gridPos.w,
     height: panel.gridPos.h,
     itemHeight: panel.gridPos.h,
     body,
     maxPerRow: panel.maxPerRow,
     ...repeatOptions,
-    $behaviors: [hoverHeaderOffsetBehavior],
   });
 }
 
